@@ -9,7 +9,7 @@
 		"apps/inno-agent",
 		"apps/inno-agent/web"
 	],
-	"main": "electron/main.js",
+	"main": "electron/main-with-auth.js",
 	"scripts": {
 		"test": "vitest run",
 		"eval:l2-retrieval": "tsx scripts/eval-l2-retrieval.ts",
@@ -24,7 +24,11 @@
 		"restart:fast": "bash restart-dev.sh --skip-build",
 		"electron": "electron .",
 		"electron:build": "npm run build && electron-builder --mac",
-		"electron:build:win": "npm run build && electron-builder --win"
+		"electron:build:win": "npm run build && electron-builder --win",
+		"electron:with-auth": "electron . --main=electron/main-with-auth.js",
+		"build:with-auth": "bash scripts/build-with-auth.sh",
+		"build:with-auth:win": "bash scripts/build-with-auth.sh --platform win",
+		"build:with-auth:bump": "bash scripts/build-with-auth.sh --bump patch --open"
 	},
 	"engines": {
 		"node": ">=20.6.0"
@@ -43,7 +47,8 @@
 			"apps/inno-agent/presets/**/*",
 			"apps/inno-agent/scripts/**/*",
 			"node_modules/**/*",
-			"!node_modules/.cache/**/*"
+			"!node_modules/.cache/**/*",
+			"!electron/auth-dist/.gitkeep"
 		],
 		"asarUnpack": [
 			"**/node_modules/node-pty/**/*",
