@@ -43,6 +43,9 @@
 	"subagents": {
 		"enabled": false
 	},
+	"ui": {
+		"openDevTools": false
+	},
 	"contentHub": {
 		"type": "github",
 		"owner": "Chloris-Blaxk",

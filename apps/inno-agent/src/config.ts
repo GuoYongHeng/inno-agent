@@ -154,6 +154,7 @@ export interface InnoConfig {
 	simpleMode?: InnoSimpleModeConfig;
 	ui?: {
 		theme: string;
+		openDevTools?: boolean;
 	};
 	/**
 	 * Optional OCR API config (Baidu PaddleOCR-VL). When the configured model
@@ -318,7 +319,10 @@ export function normalizeConfig(config: LegacyInnoConfig): InnoConfig {
 		subagents: config.subagents,
 		memory: normalizeMemoryConfig(config.memory),
 		simpleMode: normalizeSimpleModeConfig(config.simpleMode),
-		ui: { theme: "innospark" },
+		ui: {
+			theme: "innospark",
+			openDevTools: false,
+		},
 		ocrApi: config.ocrApi,
 		tavily: config.tavily,
 	} as InnoConfig;

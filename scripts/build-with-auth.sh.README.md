@@ -12,6 +12,8 @@ bash scripts/build-with-auth.sh
 bash scripts/build-with-auth.sh --platform win
 ```
 
+> macOS 本机交叉打包 Windows 时默认只生成 NSIS `.exe`。`msi` 依赖 WiX/Wine，macOS Catalina 及更新版本无法运行其 32 位 Windows 执行链；需要在 Windows 本机或 GitHub Actions 的 `windows-latest` runner 上执行 `npm run electron:build:win:all`。
+
 ## 所有参数
 
 ```bash
@@ -67,7 +69,7 @@ bash scripts/build-with-auth.sh
 打包完成后，安装包位于 `dist-electron/` 目录：
 
 - **macOS**: `Inno Agent-{version}-arm64.dmg`
-- **Windows**: `Inno Agent Setup {version}.exe` 和 `.msi`
+- **Windows**: macOS 本机交叉打包生成 `Inno Agent Setup {version}.exe`；Windows 本机/CI 可生成 `.exe` 和 `.msi`
 
 ## 故障排查
 

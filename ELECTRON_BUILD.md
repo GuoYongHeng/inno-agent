@@ -4,6 +4,20 @@
 
 见 **[`docs/mac-app-packaging.md`](docs/mac-app-packaging.md)**（GitHub Actions **macOS Release** 工作流）。
 
+## Windows 打包
+
+在 macOS 本机交叉打包 Windows 时，使用：
+
+```bash
+npm run electron:build:win
+```
+
+该命令只生成 NSIS `.exe` 安装包，避免触发 MSI/WiX。`msi` 依赖 WiX/Wine，macOS Catalina 及更新版本无法运行其 32 位 Windows 执行链；需要在 Windows 本机或 GitHub Actions 的 `windows-latest` runner 上执行：
+
+```bash
+npm run electron:build:win:all
+```
+
 ## electron/ 目录
 
 | 文件 | 用途 |

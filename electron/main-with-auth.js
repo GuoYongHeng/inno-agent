@@ -125,8 +125,18 @@ function openAuthWindow() {
   // 加载 auth-frontend 的 index.html
   authWindow.loadFile(authIndexPath);
 
-  // 打开 DevTools 用于调试
-  authWindow.webContents.openDevTools();
+  // 仅在配置显式开启时打开 DevTools
+  let openDevTools = false;
+  try {
+    const configContent = readFileSync(configPath, 'utf-8');
+    const config = JSON.parse(configContent);
+    openDevTools = config.ui?.openDevTools === true || process.env.INNO_OPEN_DEVTOOLS === "1";
+  } catch (e) {
+    debugLog(`Failed to read ui config: ${e.message}`);
+  }
+  if (openDevTools) {
+    authWindow.webContents.openDevTools();
+  }
 
   // 注入配置（在页面加载完成后）
   authWindow.webContents.on('did-finish-load', () => {
