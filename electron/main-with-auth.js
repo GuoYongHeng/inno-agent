@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Tray, Menu, shell, dialog, nativeImage, ipcMain } from "electron";
+import { app, BrowserWindow, Tray, Menu, shell, dialog, nativeImage, ipcMain, screen } from "electron";
 import { existsSync, mkdirSync, writeFileSync, appendFileSync, readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { join, dirname } from "node:path";
@@ -79,6 +79,123 @@ let loadingWindow = null;
 let serverProcess = null;
 let tray = null;
 let authToken = null; // 存储登录后的 token
+let currentUser = null;
+let userPanelWindow = null;
+let clearAuthStorageOnNextLoad = false;
+
+function getAuthApiBase() {
+  try {
+    const config = JSON.parse(readFileSync(configPath, "utf-8"));
+    return typeof config.authApiBase === "string" ? config.authApiBase.replace(/\/+$/, "") : "";
+  } catch (error) {
+    debugLog(`Failed to read auth API config: ${error.message}`);
+    return "";
+  }
+}
+
+function sanitizeUser(user) {
+  if (!user || typeof user !== "object") return null;
+
+  return {
+    id: typeof user.id === "string" ? user.id : "",
+    username: typeof user.username === "string" ? user.username : "",
+  };
+}
+
+async function loadCurrentUser(token) {
+  const authApiBase = getAuthApiBase();
+  if (!authApiBase || typeof token !== "string" || !token) {
+    currentUser = null;
+    return;
+  }
+
+  try {
+    const response = await fetch(`${authApiBase}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    currentUser = sanitizeUser(await response.json());
+  } catch (error) {
+    debugLog(`Failed to load current user: ${error.message}`);
+    currentUser = null;
+  }
+}
+
+function positionUserPanelWindow() {
+  if (!mainWindow || !userPanelWindow || userPanelWindow.isDestroyed()) return;
+
+  const { x, y, height } = mainWindow.getBounds();
+  const [panelWidth, panelHeight] = userPanelWindow.getSize();
+  const { x: workAreaX, y: workAreaY, width: workAreaWidth, height: workAreaHeight } =
+    screen.getDisplayMatching(mainWindow.getBounds()).workArea;
+  const left = Math.max(workAreaX, Math.min(x + 16, workAreaX + workAreaWidth - panelWidth - 8));
+  const top = Math.max(workAreaY, Math.min(y + height - panelHeight - 8, workAreaY + workAreaHeight - panelHeight - 8));
+
+  userPanelWindow.setPosition(Math.round(left), Math.round(top), false);
+}
+
+function resizeUserPanelWindow(layout) {
+  if (!userPanelWindow || userPanelWindow.isDestroyed()) return;
+
+  const menuOpen = layout?.menu === true;
+  const aboutOpen = menuOpen && layout?.about === true;
+  const width = aboutOpen ? 430 : 240;
+  const height = aboutOpen ? 360 : menuOpen ? 300 : 80;
+
+  userPanelWindow.setSize(width, height, false);
+  positionUserPanelWindow();
+}
+
+function closeUserPanelWindow() {
+  if (userPanelWindow && !userPanelWindow.isDestroyed()) {
+    userPanelWindow.close();
+  }
+  userPanelWindow = null;
+}
+
+function openUserPanelWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (userPanelWindow && !userPanelWindow.isDestroyed()) {
+    userPanelWindow.webContents.send("user-panel:user-updated", currentUser);
+    positionUserPanelWindow();
+    userPanelWindow.show();
+    return;
+  }
+
+  userPanelWindow = new BrowserWindow({
+    width: 240,
+    height: 80,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    movable: false,
+    show: false,
+    skipTaskbar: true,
+    hasShadow: false,
+    parent: mainWindow,
+    backgroundColor: "#00000000",
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      preload: join(__dirname, "preload-user-panel.js"),
+    },
+  });
+
+  userPanelWindow.loadFile(join(__dirname, "user-panel.html"));
+  userPanelWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: "deny" };
+  });
+  userPanelWindow.once("ready-to-show", () => {
+    if (!userPanelWindow || userPanelWindow.isDestroyed()) return;
+    userPanelWindow.webContents.send("user-panel:user-updated", currentUser);
+    positionUserPanelWindow();
+    userPanelWindow.show();
+  });
+  userPanelWindow.on("closed", () => {
+    userPanelWindow = null;
+  });
+}
 
 // ── Loading 窗口（服务启动期间显示） ────────────────────────────────────────
 function openLoadingWindow() {
@@ -115,6 +232,7 @@ function openAuthWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       preload: join(__dirname, "preload-auth.js"),
+      partition: "persist:auth",
     },
   });
 
@@ -122,8 +240,23 @@ function openAuthWindow() {
   debugLog(`Loading auth window from: ${authIndexPath}`);
   debugLog(`File exists: ${existsSync(authIndexPath)}`);
 
-  // 加载 auth-frontend 的 index.html
-  authWindow.loadFile(authIndexPath);
+  // 退出登录后先清理认证窗口的持久化存储，再加载登录页，避免自动登录。
+  const clearAuthStorage = clearAuthStorageOnNextLoad;
+  clearAuthStorageOnNextLoad = false;
+  const loadAuthWindow = () => {
+    if (!authWindow || authWindow.isDestroyed()) return;
+    authWindow.loadFile(authIndexPath);
+  };
+  if (clearAuthStorage) {
+    void authWindow.webContents.session
+      .clearStorageData({ storages: ["cookies", "localstorage", "serviceworkers", "cachestorage"] })
+      .catch((error) => {
+        debugLog(`Failed to clear auth storage: ${error.message}`);
+      })
+      .finally(loadAuthWindow);
+  } else {
+    loadAuthWindow();
+  }
 
   // 仅在配置显式开启时打开 DevTools
   let openDevTools = false;
@@ -200,7 +333,7 @@ function openAuthWindow() {
     // 可以注入脚本检查登录状态
     authWindow.webContents.executeJavaScript(`
       (function() {
-        const token = localStorage.getItem('auth_token');
+        const token = localStorage.getItem('auth_token') || localStorage.getItem('access_token');
         if (token) {
           window.electronAPI?.onAuthSuccess?.(token);
         }
@@ -210,9 +343,16 @@ function openAuthWindow() {
 }
 
 // ── 登录成功处理 ──────────────────────────────────────────────────────────────
+function notifyUserPanel() {
+  if (userPanelWindow && !userPanelWindow.isDestroyed()) {
+    userPanelWindow.webContents.send("user-panel:user-updated", currentUser);
+  }
+}
+
 function onAuthSuccess(token) {
   console.log("[auth] 登录成功，准备打开主窗口");
   authToken = token;
+  currentUser = null;
 
   // 关闭登录窗口
   if (authWindow) {
@@ -222,11 +362,45 @@ function onAuthSuccess(token) {
 
   // 打开主窗口
   openMainWindow();
+
+  void loadCurrentUser(token).finally(() => {
+    notifyUserPanel();
+  });
+}
+
+function logoutFromUserPanel() {
+  authToken = null;
+  currentUser = null;
+  closeUserPanelWindow();
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.close();
+  }
+
+  // 登录页使用持久化 localStorage，清理后避免退出登录又被自动登录。
+  clearAuthStorageOnNextLoad = true;
+  openAuthWindow();
 }
 
 // 监听来自 preload 的登录成功消息
 ipcMain.on("auth-success", (event, token) => {
   onAuthSuccess(token);
+});
+ipcMain.handle("user-panel:get-current-user", () => currentUser);
+ipcMain.handle("user-panel:logout", () => logoutFromUserPanel());
+ipcMain.handle("user-panel:open-account", () => {
+  const authApiBase = getAuthApiBase();
+  if (!authApiBase) return false;
+  void shell.openExternal(`${authApiBase}/sandbox/account`);
+  return true;
+});
+ipcMain.handle("user-panel:open-external", (_event, url) => {
+  if (typeof url !== "string" || !/^https?:\/\//i.test(url)) return false;
+  void shell.openExternal(url);
+  return true;
+});
+ipcMain.on("user-panel:set-expanded", (_event, layout) => {
+  resizeUserPanelWindow(layout);
 });
 
 // ── 主窗口 ────────────────────────────────────────────────────────────────────
@@ -263,7 +437,17 @@ function openMainWindow() {
   // 关闭 loading 窗口
   loadingWindow?.close();
 
-  mainWindow.on("closed", () => { mainWindow = null; });
+  mainWindow.once("ready-to-show", () => {
+    openUserPanelWindow();
+  });
+  mainWindow.on("move", positionUserPanelWindow);
+  mainWindow.on("resize", positionUserPanelWindow);
+  mainWindow.on("maximize", positionUserPanelWindow);
+  mainWindow.on("unmaximize", positionUserPanelWindow);
+  mainWindow.on("closed", () => {
+    closeUserPanelWindow();
+    mainWindow = null;
+  });
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: "deny" };
