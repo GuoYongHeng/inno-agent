@@ -1,0 +1,78 @@
+{
+  "defaultProvider": "ecnu-ds",
+  "defaultModel": "deepseek-v4-pro",
+  "authApiBase": "https://innospark.cn",
+  "providers": {
+		"ecnu": {
+			"baseUrl": "https://api.innospark.cn/v1",
+			"api": "openai-completions",
+			"apiKey": "sk-VXXULSuabzmuXZhrjiDTRPBOuVMadBsk2nmmSfDGxsLhuaHf",
+			"models": [
+				{
+					"id": "Qwen3.6-35B-inno",
+					"name": "Qwen3.6-35B-inno",
+					"reasoning": true,
+					"contextWindow": 262000,
+					"maxTokens": 62000
+				}
+			]
+		},
+		"ecnu-ds": {
+			"baseUrl": "https://api.innospark.cn/v1",
+			"api": "openai-completions",
+			"apiKey": "sk-34qsOmkb6KGcES2zdpoWkV786uCFFcruznqBY8tqpbBT6zXL",
+			"models": [
+				{
+					"id": "deepseek-v4-pro",
+					"name": "deepseek-v4-pro",
+					"reasoning": true,
+					"contextWindow": 1000000,
+					"maxTokens": 384000
+				}
+			]
+		}
+	},
+	"server": {
+		"port": 3000
+	},
+	"channels": {
+		"feishu": {
+			"enabled": false,
+			"personalOnly": true,
+			"allowedUserIds": []
+		},
+		"qq": {
+			"enabled": false,
+			"mode": "bridge",
+			"personalOnly": true,
+			"allowedUserIds": [],
+			"sidecarBaseUrl": "http://127.0.0.1:4318"
+		},
+		"wechat": {
+			"enabled": false,
+			"mode": "bridge",
+			"personalOnly": true,
+			"allowedUserIds": [],
+			"sidecarBaseUrl": "http://127.0.0.1:4319"
+		}
+	},
+	"bridge": {
+		"token": "replace-me-with-a-secret"
+	},
+	"contentHub": {
+    	"type": "bundle",
+    	"baseUrl": "http://content-hub-server:8787",
+    	"token": ""
+    },
+	"subagents": {
+		"enabled": false
+	},
+	"ocrApi": {
+    	"token": "0b5763db549946112b5dce81e49c238904cea543",
+    	"model": "PaddleOCR-VL-1.6",
+    	"baseUrl": "https://paddleocr.aistudio-app.com/api/v2/ocr/jobs"
+    },
+	"tavily": {
+    	"apiKey": "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"
+  	}
+}

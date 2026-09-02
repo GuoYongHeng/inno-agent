@@ -41,6 +41,12 @@
 		"directories": {
 			"output": "dist-electron"
 		},
+		"extraResources": [
+			{
+				"from": "electron/default-config.json",
+				"to": "default-config.json"
+			}
+		],
 		"files": [
 			"electron/**/*",
 			"apps/inno-agent/dist/**/*",

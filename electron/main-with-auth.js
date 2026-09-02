@@ -1,5 +1,5 @@
 import { app, BrowserWindow, Tray, Menu, shell, dialog, nativeImage, ipcMain, screen } from "electron";
-import { existsSync, mkdirSync, writeFileSync, appendFileSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, copyFileSync, appendFileSync, readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { join, dirname } from "node:path";
 import { homedir } from "node:os";
@@ -40,36 +40,10 @@ const PORT = 3000;
 function ensureConfig() {
   if (existsSync(configPath)) return;
   mkdirSync(configDir, { recursive: true });
-  const defaults = {
-    defaultProvider: "default",
-    defaultModel: "claude-sonnet-4-6",
-    authApiBase: "https://innospark.cn",  // 👈 默认的 auth API 地址
-    providers: {
-      default: {
-        baseUrl: "https://innospark.cn",
-        api: "anthropic-messages",
-        apiKey: "",
-        models: [
-          {
-            id: "claude-sonnet-4-6",
-            name: "claude-sonnet-4-6",
-            reasoning: false,
-            contextWindow: 128000,
-            maxTokens: 8192,
-          },
-        ],
-      },
-    },
-    server: { port: PORT },
-    channels: {
-      feishu: { enabled: false },
-      qq: { enabled: false, mode: "bridge", sidecarBaseUrl: "http://127.0.0.1:4318" },
-      wechat: { enabled: false, mode: "bridge", sidecarBaseUrl: "http://127.0.0.1:4319" },
-    },
-    bridge: { token: "" },
-    subagents: { enabled: false },
-  };
-  writeFileSync(configPath, JSON.stringify(defaults, null, 2) + "\n");
+  const bundledConfigPath = isDev
+    ? join(__dirname, "default-config.json")
+    : join(process.resourcesPath, "default-config.json");
+  copyFileSync(bundledConfigPath, configPath);
 }
 
 // ── 全局状态 ──────────────────────────────────────────────────────────────────
@@ -86,7 +60,8 @@ let clearAuthStorageOnNextLoad = false;
 function getAuthApiBase() {
   try {
     const config = JSON.parse(readFileSync(configPath, "utf-8"));
-    return typeof config.authApiBase === "string" ? config.authApiBase.replace(/\/+$/, "") : "";
+    const authApiBase = typeof config.authApiBase === "string" ? config.authApiBase : "";
+    return (authApiBase || "https://innospark.cn").replace(/\/+$/, "");
   } catch (error) {
     debugLog(`Failed to read auth API config: ${error.message}`);
     return "";
@@ -280,7 +255,9 @@ function openAuthWindow() {
     try {
       const configContent = readFileSync(configPath, 'utf-8');
       const config = JSON.parse(configContent);
-      authApiBase = config.authApiBase || '';
+      authApiBase = typeof config.authApiBase === 'string' && config.authApiBase
+        ? config.authApiBase
+        : 'https://innospark.cn';
       debugLog(`Auth API Base from config: ${authApiBase}`);
     } catch (e) {
       debugLog(`Failed to read auth config: ${e.message}`);
