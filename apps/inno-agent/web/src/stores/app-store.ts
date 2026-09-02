@@ -32,6 +32,7 @@ class AppStoreImpl extends EventEmitter<AppStoreEvents> {
 		this.emit("change", undefined);
 		// 通知父页面（auth-service 沙箱宿主）隐藏其左下角用户浮层，避免覆盖设置页
 		notifyParentSettings(true);
+		notifyElectronSettings(true);
 	}
 
 	closeSettings() {
@@ -39,6 +40,7 @@ class AppStoreImpl extends EventEmitter<AppStoreEvents> {
 		this.settingsOpen = false;
 		this.emit("change", undefined);
 		notifyParentSettings(false);
+		notifyElectronSettings(false);
 	}
 
 	setSettingsTab(tab: SettingsTab) {
@@ -130,6 +132,15 @@ function notifyParentSettings(open: boolean) {
 	if (typeof window !== "undefined" && window.parent && window.parent !== window) {
 		window.parent.postMessage({ type: "inno-settings", open }, "*");
 	}
+}
+
+function notifyElectronSettings(open: boolean) {
+	if (typeof window === "undefined") return;
+
+	const electronAPI = (window as Window & {
+		electronAPI?: { setSettingsOverlayOpen?: (open: boolean) => void };
+	}).electronAPI;
+	electronAPI?.setSettingsOverlayOpen?.(open);
 }
 
 export const appStore = new AppStoreImpl();

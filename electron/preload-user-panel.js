@@ -13,4 +13,11 @@ contextBridge.exposeInMainWorld("userPanelAPI", {
     ipcRenderer.on("user-panel:user-updated", listener);
     return () => ipcRenderer.removeListener("user-panel:user-updated", listener);
   },
+  onCloseMenu: (callback) => {
+    if (typeof callback !== "function") return () => {};
+
+    const listener = () => callback();
+    ipcRenderer.on("user-panel:close-menu", listener);
+    return () => ipcRenderer.removeListener("user-panel:close-menu", listener);
+  },
 });

@@ -56,6 +56,7 @@ let authToken = null; // 存储登录后的 token
 let currentUser = null;
 let userPanelWindow = null;
 let clearAuthStorageOnNextLoad = false;
+let userPanelHiddenBySettings = false;
 
 function getAuthApiBase() {
   try {
@@ -111,6 +112,7 @@ function positionUserPanelWindow() {
 
 function resizeUserPanelWindow(layout) {
   if (!userPanelWindow || userPanelWindow.isDestroyed()) return;
+  if (userPanelHiddenBySettings) return;
 
   const menuOpen = layout?.menu === true;
   const aboutOpen = menuOpen && layout?.about === true;
@@ -130,6 +132,7 @@ function closeUserPanelWindow() {
 
 function openUserPanelWindow() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (userPanelHiddenBySettings) return;
   if (userPanelWindow && !userPanelWindow.isDestroyed()) {
     userPanelWindow.webContents.send("user-panel:user-updated", currentUser);
     positionUserPanelWindow();
@@ -170,6 +173,27 @@ function openUserPanelWindow() {
   userPanelWindow.on("closed", () => {
     userPanelWindow = null;
   });
+}
+
+function setUserPanelVisibleForSettings(open) {
+  userPanelHiddenBySettings = open === true;
+
+  if (!userPanelWindow || userPanelWindow.isDestroyed()) {
+    if (!userPanelHiddenBySettings && mainWindow && !mainWindow.isDestroyed()) {
+      openUserPanelWindow();
+    }
+    return;
+  }
+
+  if (userPanelHiddenBySettings) {
+    userPanelWindow.webContents.send("user-panel:close-menu");
+    userPanelWindow.hide();
+    return;
+  }
+
+  userPanelWindow.setSize(240, 80, false);
+  positionUserPanelWindow();
+  userPanelWindow.show();
 }
 
 // ── Loading 窗口（服务启动期间显示） ────────────────────────────────────────
@@ -379,6 +403,9 @@ ipcMain.handle("user-panel:open-external", (_event, url) => {
 ipcMain.on("user-panel:set-expanded", (_event, layout) => {
   resizeUserPanelWindow(layout);
 });
+ipcMain.on("main-window:set-settings-open", (_event, open) => {
+  setUserPanelVisibleForSettings(open);
+});
 
 // ── 主窗口 ────────────────────────────────────────────────────────────────────
 function openMainWindow() {
@@ -400,6 +427,7 @@ function openMainWindow() {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      preload: join(__dirname, "preload-main.js"),
     },
   });
 

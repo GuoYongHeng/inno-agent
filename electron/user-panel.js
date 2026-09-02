@@ -25,6 +25,10 @@ function setMenuOpen(open) {
   window.userPanelAPI.setExpanded({ menu: open, about: false });
 }
 
+function closeMenus() {
+  setMenuOpen(false);
+}
+
 userButton.addEventListener("click", () => {
   setMenuOpen(menu.hidden);
 });
@@ -44,7 +48,7 @@ officialSiteButton.addEventListener("click", () => {
 });
 
 document.addEventListener("click", (event) => {
-  if (!event.target.closest(".panel")) setMenuOpen(false);
+  if (!event.target.closest(".panel")) closeMenus();
 });
 
 logoutButton.addEventListener("click", async () => {
@@ -59,4 +63,5 @@ logoutButton.addEventListener("click", async () => {
 });
 
 window.userPanelAPI.onUserUpdated(setUser);
+window.userPanelAPI.onCloseMenu(closeMenus);
 window.userPanelAPI.getCurrentUser().then(setUser).catch(() => setUser(null));
