@@ -338,7 +338,7 @@ export class SessionsStoreImpl extends EventEmitter<SessionsStoreEvents> {
 			this.currentSessionId = created.id;
 			this.syncSessionUrl(created.id, "replace");
 			if (created.workspaceId) {
-				void workspaceStore.setActiveWorkspace(created.workspaceId);
+				await workspaceStore.setActiveWorkspace(created.workspaceId);
 			}
 			this.emit("change", undefined);
 		} finally {
