@@ -61,7 +61,7 @@
 	},
 	"contentHub": {
     	"type": "bundle",
-    	"baseUrl": "http://content-hub-server:8787",
+    	"baseUrl": "http://skillcontent.innospark.cn",
     	"token": ""
     },
 	"subagents": {
