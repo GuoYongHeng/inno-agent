@@ -52,6 +52,7 @@ show_help() {
 
 选项：
   --platform <mac|win>    目标平台 (默认: mac)
+  --arch <arm64|x64|both> macOS 目标架构 (默认: both)
   --bump <major|minor|patch>  自动升级版本号
   --open                  构建完成后打开输出目录
   --skip-auth             跳过 auth-frontend 构建（仅用于调试）
@@ -90,6 +91,7 @@ bump_version() {
 # ============================================================================
 
 PLATFORM="mac"
+ARCH="both"   # 仅 macOS 生效: arm64 | x64 | both
 BUMP_VERSION=""
 OPEN_AFTER_BUILD=false
 SKIP_AUTH=false
@@ -98,6 +100,10 @@ while [[ $# -gt 0 ]]; do
   case $1 in
     --platform)
       PLATFORM="$2"
+      shift 2
+      ;;
+    --arch)
+      ARCH="$2"
       shift 2
       ;;
     --bump)
@@ -127,6 +133,11 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+case "$ARCH" in
+  arm64|x64|both) ;;
+  *) log_error "无效的 --arch（支持: arm64 | x64 | both）"; exit 1 ;;
+esac
 
 # ============================================================================
 # 预检查
@@ -237,8 +248,12 @@ log_info "步骤 4/4: 打包 Electron 应用..."
 
 case "${PLATFORM}" in
   mac)
-    log_info "打包 macOS 应用 (arm64)..."
-    npm run electron:build
+    log_info "打包 macOS 应用 (${ARCH})..."
+    case "${ARCH}" in
+      arm64) npm run electron:build:arm64 ;;
+      x64)   npm run electron:build:x64 ;;
+      both)  npm run electron:build ;;
+    esac
     OUTPUT_DIR="dist-electron"
     ;;
   win)

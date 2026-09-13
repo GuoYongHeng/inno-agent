@@ -24,6 +24,8 @@
 		"restart:fast": "bash restart-dev.sh --skip-build",
 		"electron": "electron .",
 		"electron:build": "npm run build && electron-builder --mac",
+		"electron:build:arm64": "npm run build && electron-builder --mac --arm64 --publish never",
+		"electron:build:x64": "npm run build && electron-builder --mac --x64 --publish never",
 		"electron:build:win": "npm run build && electron-builder --win nsis --x64 --publish never",
 		"electron:build:win:all": "npm run build && electron-builder --win --x64 --publish never",
 		"electron:with-auth": "electron . --main=electron/main-with-auth.js",
@@ -65,11 +67,13 @@
 		],
 		"mac": {
 			"icon": "build/icon.icns",
+			"artifactName": "${productName}-${version}-${arch}.${ext}",
 			"target": [
 				{
 					"target": "dmg",
 					"arch": [
-						"arm64"
+						"arm64",
+						"x64"
 					]
 				}
 			],

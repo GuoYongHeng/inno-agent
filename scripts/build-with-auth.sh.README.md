@@ -68,7 +68,7 @@ bash scripts/build-with-auth.sh
 
 打包完成后，安装包位于 `dist-electron/` 目录：
 
-- **macOS**: `Inno Agent-{version}-arm64.dmg`
+- **macOS**: `Inno Agent-{version}-arm64.dmg`（Apple 芯片）与 `Inno Agent-{version}-x64.dmg`（Intel 芯片）
 - **Windows**: macOS 本机交叉打包生成 `Inno Agent Setup {version}.exe`；Windows 本机/CI 可生成 `.exe` 和 `.msi`
 
 ## 故障排查
